@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: scam-trace-ai
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+    startCommand: python app.py
