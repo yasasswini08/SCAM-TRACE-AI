@@ -1,4 +1,3 @@
-import pytesseract
 from PIL import Image
 import os
 import whois
@@ -6,9 +5,18 @@ from datetime import datetime
 from flask import Flask, request, jsonify
 import joblib
 import requests
+import google.generativeai as genai
 
 
 app = Flask(__name__)
+
+genai.configure(
+    api_key="AIzaSyCxUUSV88SsR0tMfNo9XLmuw64gDC7SAZU"
+)
+
+gemini_model = genai.GenerativeModel(
+    "gemini-2.5-flash"
+)
 
 # Load trained model
 model = joblib.load("recruitment_model.pkl")
@@ -75,11 +83,12 @@ def extract_text_from_image(image_path):
 
         image = Image.open(image_path)
 
-        text = pytesseract.image_to_string(
+        response = gemini_model.generate_content([
+            "Extract all text from this image",
             image
-        )
+        ])
 
-        return text
+        return response.text
 
     except Exception as e:
 
