@@ -8,3 +8,4 @@ requests
 python-whois
 pillow
 google-generativeai
+python-dotenv
