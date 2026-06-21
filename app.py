@@ -17,7 +17,7 @@ app = Flask(__name__)
 genai.configure(
     api_key=os.getenv("GEMINI_API_KEY")
 )
-print("API Key Found:", os.getenv("GEMINI_API_KEY") is not None)
+
 
 gemini_model = genai.GenerativeModel(
     "gemini-2.5-flash"
