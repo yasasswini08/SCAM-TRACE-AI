@@ -7,13 +7,17 @@ import joblib
 import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
+import json
 
+from flask_cors import CORS
 
-load_dotenv()
 
 
 app = Flask(__name__)
 os.makedirs("uploads", exist_ok=True)
+
+CORS(app)
+load_dotenv()
 
 genai.configure(
     api_key=os.getenv("GEMINI_API_KEY")
@@ -648,5 +652,78 @@ def ocr_analyze():
         "trust_status": trust_status
 
     })
+@app.route("/ats-score", methods=["POST"])
+def ats_score():
+
+    data = request.get_json()
+
+    resume = data.get("resume", "")
+    job_description = data.get("job_description", "")
+
+    if not resume or not job_description:
+        return jsonify({
+            "error": "Resume and Job Description are required."
+        }), 400
+
+    prompt = f"""
+You are an ATS (Applicant Tracking System).
+
+Compare the Resume and Job Description.
+
+Return ONLY valid JSON.
+
+Resume:
+{resume}
+
+Job Description:
+{job_description}
+
+JSON Format:
+
+{{
+  "ats_score": 0,
+  "matched_skills": [],
+  "missing_skills": [],
+  "experience_match": "",
+  "education_match": "",
+  "summary": "",
+  "recommendation": ""
+}}
+
+Rules:
+
+ATS Score:
+90-100 = Excellent Match
+75-89 = Strong Match
+60-74 = Moderate Match
+Below 60 = Weak Match
+
+Recommendation must be one of:
+Shortlist
+Needs Review
+Reject
+"""
+
+    try:
+
+        response = gemini_model.generate_content(prompt)
+
+        text = response.text.strip()
+
+        if text.startswith("```json"):
+            text = text.replace("```json", "").replace("```", "").strip()
+
+        elif text.startswith("```"):
+            text = text.replace("```", "").strip()
+
+        result = json.loads(text)
+
+        return jsonify(result)
+
+    except Exception as e:
+
+        return jsonify({
+            "error": str(e)
+        }), 500
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
