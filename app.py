@@ -8,6 +8,8 @@ import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
 import json
+import fitz  # PyMuPDF
+import tempfile
 
 from flask_cors import CORS
 
@@ -655,17 +657,44 @@ def ocr_analyze():
 @app.route("/ats-score", methods=["POST"])
 def ats_score():
 
-    data = request.get_json()
+    try:
 
-    resume = data.get("resume", "")
-    job_description = data.get("job_description", "")
+        # PDF file
+        if "resume" not in request.files:
+            return jsonify({
+                "error": "Resume PDF is required."
+            }), 400
 
-    if not resume or not job_description:
-        return jsonify({
-            "error": "Resume and Job Description are required."
-        }), 400
+        pdf_file = request.files["resume"]
 
-    prompt = f"""
+        job_description = request.form.get("job_description", "")
+
+        if not job_description:
+            return jsonify({
+                "error": "Job Description is required."
+            }), 400
+
+        # Save temporarily
+        temp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        pdf_file.save(temp.name)
+
+        # Extract PDF text
+        doc = fitz.open(temp.name)
+
+        resume_text = ""
+
+        for page in doc:
+            resume_text += page.get_text()
+
+        doc.close()
+        os.remove(temp.name)
+
+        if not resume_text.strip():
+            return jsonify({
+                "error": "Unable to extract text from PDF."
+            }), 400
+
+        prompt = f"""
 You are an ATS (Applicant Tracking System).
 
 Compare the Resume and Job Description.
@@ -673,7 +702,7 @@ Compare the Resume and Job Description.
 Return ONLY valid JSON.
 
 Resume:
-{resume}
+{resume_text}
 
 Job Description:
 {job_description}
@@ -704,8 +733,6 @@ Needs Review
 Reject
 """
 
-    try:
-
         response = gemini_model.generate_content(prompt)
 
         text = response.text.strip()
@@ -725,5 +752,6 @@ Reject
         return jsonify({
             "error": str(e)
         }), 500
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
