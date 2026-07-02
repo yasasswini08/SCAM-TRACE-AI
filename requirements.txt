@@ -10,3 +10,4 @@ pillow
 google-generativeai
 python-dotenv
 Flask-Cors==6.0.1
+PyMuPDF
